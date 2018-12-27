@@ -9,6 +9,8 @@ from cloudless.testutils.blueprint_tester import call_with_retries
 from cloudless.testutils.fixture import BlueprintTestInterface, SetupInfo
 from cloudless.types.networking import CidrBlock
 
+SERVICE_BLUEPRINT = os.path.join(os.path.dirname(__file__), "example-postgres/blueprint.yml")
+
 RETRY_DELAY = float(10.0)
 RETRY_COUNT = int(6)
 
@@ -20,17 +22,34 @@ class BlueprintTest(BlueprintTestInterface):
         """
         Create the dependent services needed to test this service.
         """
-        # Since this service has no dependencies, do nothing.
-        return SetupInfo({}, {})
+        # Create postgres so we can test Prometheus with remote storage
+        service_name = "postgres"
+        service = self.client.service.create(network, service_name, SERVICE_BLUEPRINT, count=1)
+
+        # Set the postgres_url to the IP of the first postgres instance
+        blueprint_variables = {
+            "postgres_url": [i.private_ip for s in service.subnetworks for i in s.instances][0]
+            }
+
+        return SetupInfo(
+            {"service_name": service_name},
+            blueprint_variables)
 
     def setup_after_tested_service(self, network, service, setup_info):
         """
         Do any setup that must happen after the service under test has been
         created.
         """
+        # Make sure we can connect to Prometheus
         my_ip = requests.get("http://ipinfo.io/ip")
         test_machine = CidrBlock(my_ip.content.decode("utf-8").strip())
         self.client.paths.add(test_machine, service, 9090)
+
+        # Add this last because we want to make sure that our service can handle a delay before
+        # getting connectivity to postgres.
+        postgres_service_name = setup_info.deployment_info["service_name"]
+        postgres_service = self.client.service.get(network, postgres_service_name)
+        self.client.paths.add(service, consul_service, 5432)
 
     def verify(self, network, service, setup_info):
         """

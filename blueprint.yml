@@ -21,6 +21,8 @@ image:
 initialization:
   - path: "prometheus_startup_script.sh"
     vars:
+      postgres_url:
+        required: false
       cloudless_test_framework_ssh_key:
         required: false
       cloudless_test_framework_ssh_username:

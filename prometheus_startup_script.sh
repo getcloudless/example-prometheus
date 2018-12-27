@@ -41,6 +41,10 @@ scrape_configs:
       - targets: ['localhost:9090']
 EOF
 
+{% if prometheus_url %}
+# TODO: Configure prometheus to connect to postgresql
+{% endif %}
+
 # Run Prometheus
 docker run -d -p 9090:9090 \
     -v /tmp/prometheus.yml:/etc/prometheus/prometheus.yml prom/prometheus
