@@ -1,0 +1,3 @@
+[submodule "example-postgres"]
+	path = example-postgres
+	url = https://github.com/getcloudless/example-postgres
